@@ -2,17 +2,23 @@ const Session = require("../models/session.model");
 const uuid = require("uuid");
 const errorHandler = require("../utils/errorHandler");
 const openai = require("../utils/openai");
-
+const removeMd = require("remove-markdown");
 exports.sessionHandler = async (req, res, next) => {
   // Check if cookie exists
   if (!req.cookies.sessionToken) {
     // Generate a random token
     const token = uuid.v4();
     // Create a new session with the token
-    const session = new Session({ token });
+    const session = new Session({
+      token,
+      userAgent: req.headers["user-agent"],
+    });
     await session.save();
     // Save the session to the database
-    res.cookie("sessionToken", session.token, { httpOnly: true });
+    res.cookie("sessionToken", session.token, {
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000,
+    });
 
     req.session = session; // Add session to req
     next();
@@ -38,8 +44,13 @@ exports.sessionHandler = async (req, res, next) => {
 
 exports.newMessage = async (req, res) => {
   const { message } = req.body;
-
   const { session } = req;
+
+  //Add message to the session messages
+  await Session.updateOne(
+    { _id: session._id },
+    { $push: { messages: message } }
+  );
 
   try {
     // Check if session has a threadID
@@ -57,9 +68,7 @@ exports.newMessage = async (req, res) => {
     await openai.beta.threads.messages.create(session.threadID, {
       role: "user",
       content: message,
-      temperature: 0.2,
     });
-    console.log("Temperature is 0.2");
 
     // Send the message to the thread
     const run = await openai.beta.threads.runs.create(session.threadID, {
@@ -70,15 +79,16 @@ exports.newMessage = async (req, res) => {
 
     const messages = await openai.beta.threads.messages.list(session.threadID);
 
-    // Mapea los mensajes a sus contenidos
-    let responses = messages.data.map(
-      (message) => message.content[0].text.value
-    );
-
     let last_message = messages.data[0];
     let response = last_message.content[0].text.value;
+    // Remove Markdown formatting
+    response = removeMd(response);
+    response = response.replace(/【\d+†source】/g, "");
 
-    session.responses = responses;
+    await Session.updateOne(
+      { _id: session._id },
+      { $push: { responses: response } }
+    );
     await session.save();
     // Return the response
     res.json({ response });

@@ -1,22 +1,29 @@
 const mongoose = require("mongoose");
 
-const sessionSchema = new mongoose.Schema({
-  token: {
-    type: String,
-    required: true,
+const sessionSchema = new mongoose.Schema(
+  {
+    token: {
+      type: String,
+      required: true,
+    },
+    threadID: {
+      type: String,
+    },
+    messages: {
+      type: Array,
+      default: [],
+    },
+    responses: {
+      type: Array,
+      default: [],
+    },
+    userAgent: {
+      type: String,
+      required: false,
+    },
   },
-  threadID: {
-    type: String,
-  },
-  messages: {
-    type: Array,
-    default: [],
-  },
-  responses: {
-    type: Array,
-    default: [],
-  },
-});
+  { timestamps: true }
+);
 
 const Session = mongoose.model("Session", sessionSchema);
 

@@ -40,8 +40,8 @@ app.use(xssClean());
 app.use(helmet());
 //Setting up rate limiter
 const limiter = rateLimit({
-  windowMs: 5 * 60 * 1000, //5 mins
-  max: 10, //10 requests
+  windowMs: 10 * 60 * 1000, //10 mins
+  max: 15, //15 requests
 });
 app.use(limiter);
 const sessionRoutes = require("./routes/session.routes");
